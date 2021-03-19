@@ -86,19 +86,28 @@ pub struct FeatureData {
     /// The version number at which the feature was stabilized.
     #[serde(rename = "version")]
     pub version_number: Option<String>,
+
+    /// Unique "feature" name for caniuse links.
+    ///
+    /// Filled in after fetch.
+    #[serde(default)]
+    pub slug: String,
 }
 
 use alfred::{Item, ItemBuilder};
 
 impl FeatureData {
     /// Creates an Alfred row item from feature data.
-    pub fn to_alfred_item(&self) -> Item<'static> {
+    pub fn to_alfred_item(&self, base_url: &str) -> Item<'static> {
         let mut builder = ItemBuilder::new(self.title.clone());
 
         match self.version_number.as_deref() {
             Some(v) => builder.set_subtitle(format!("since v{}", v)),
             None => builder.set_subtitle("unstable"),
         };
+
+        builder.set_arg(format!("{}/features/{}", base_url, &self.slug));
+        builder.set_quicklook_url(format!("{}/features/{}", base_url, &self.slug));
 
         builder.into_item()
     }

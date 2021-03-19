@@ -17,6 +17,7 @@ pub use self::models::{FeatureData, VersionData};
 pub fn alfred_error(err: impl fmt::Display + 'static) -> alfred::Item<'static> {
     alfred::ItemBuilder::new("error")
         .subtitle(format!("{}", err))
+        .valid(false)
         .into_item()
 }
 

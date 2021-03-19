@@ -33,6 +33,11 @@ impl Db {
 
         db.base_url = url.to_owned();
 
+        // fill in slugs with map key
+        for (slug, feature) in &mut db.features {
+            feature.slug = slug.clone()
+        }
+
         Ok(db)
     }
 

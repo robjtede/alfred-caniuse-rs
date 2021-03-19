@@ -18,6 +18,8 @@ fn try_main() -> eyre::Result<Vec<alfred::Item<'static>>> {
     let mut args = env::args();
     args.next();
 
+    // TODO: allow empty query to show recent versions
+
     let query = args
         .next()
         .ok_or(io::Error::new(io::ErrorKind::InvalidInput, "no query"))?;
@@ -31,12 +33,14 @@ fn try_main() -> eyre::Result<Vec<alfred::Item<'static>>> {
         }
     };
 
+    // TODO: fuzzy matching
+
     let (feature, _) = db.lookup(&query).ok_or(io::Error::new(
         io::ErrorKind::InvalidInput,
         "no feature match",
     ))?;
 
-    let item = feature.to_alfred_item();
+    let item = feature.to_alfred_item(CANIUSE_URL);
 
     Ok(vec![item])
 }
