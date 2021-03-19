@@ -109,6 +109,13 @@ impl FeatureData {
         builder.set_arg(format!("{}/features/{}", base_url, &self.slug));
         builder.set_quicklook_url(format!("{}/features/{}", base_url, &self.slug));
 
+        if self.items.is_empty() {
+            // seems to prevent large type activation
+            builder.set_text_large_type(" ".to_owned());
+        } else {
+            builder.set_text_large_type(self.items.join("\n"));
+        }
+
         builder.into_item()
     }
 }

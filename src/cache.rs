@@ -82,13 +82,17 @@ pub fn cache_put(db: &Db) {
 }
 
 fn cache_put_inner(db: &Db) -> eyre::Result<()> {
-    // create containing direction of cache file
+    // ensure containing direction of cache file exists
     fs::create_dir_all(cache_dir())?;
+
+    // we need to reset the created datetime
+    // since the caching strategy relies on it
+    let _ = fs::remove_file(cache_path())?;
 
     // if create is successful, any existing file is truncated
     let mut file = fs::File::create(cache_path())?;
 
-    let json = serde_json::to_vec(db)?;
+    let json = serde_json::to_vec_pretty(db)?;
     let enc = zstd::encode_all(&json[..], zstd::DEFAULT_COMPRESSION_LEVEL)?;
     file.write_all(&enc)?;
 
@@ -101,7 +105,7 @@ fn cache_path() -> PathBuf {
 }
 
 /// Returns absolute path to location of cache directory.
-fn cache_dir() -> PathBuf {
+pub(crate) fn cache_dir() -> PathBuf {
     use dirs::cache_dir as macos_cache_dir;
 
     macos_cache_dir()
