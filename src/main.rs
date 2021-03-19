@@ -1,15 +1,16 @@
+#![deny(rust_2018_idioms, nonstandard_style)]
+
 use std::{env, io};
 
-use alfred_caniuse_rs::{exit_alfred_error, Db};
+use alfred_caniuse_rs::{cache_fetch, cache_put, exit_alfred_error, Db};
 
-const DB_URL: &str = "https://caniuse.rs/features.json";
+const CANIUSE_URL: &str = "https://caniuse.rs";
 
 fn main() {
     let res = try_main().and_then(|items| Ok(alfred::json::write_items(io::stdout(), &items)?));
 
     if let Err(err) = res {
-        eprintln!("{}", err);
-        exit_alfred_error();
+        exit_alfred_error(err);
     }
 }
 
@@ -21,7 +22,15 @@ fn try_main() -> eyre::Result<Vec<alfred::Item<'static>>> {
         .next()
         .ok_or(io::Error::new(io::ErrorKind::InvalidInput, "no query"))?;
 
-    let db = Db::fetch(DB_URL)?;
+    let db = match cache_fetch() {
+        Some(db) => db,
+        None => {
+            let db = Db::fetch(CANIUSE_URL)?;
+            cache_put(&db);
+            db
+        }
+    };
+
     let (feature, _) = db.lookup(&query).ok_or(io::Error::new(
         io::ErrorKind::InvalidInput,
         "no feature match",

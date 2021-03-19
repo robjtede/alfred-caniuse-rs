@@ -2,9 +2,10 @@
 //!
 //! Definitions derived from https://github.com/jplatte/caniuse.rs/blob/e9c940047437cccfaf8ff65bcf68f70538877662/build.rs.
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
-#[derive(Copy, Clone, Debug, Deserialize)]
+/// Versions that have been cut are either stable, beta or nightly.
+#[derive(Copy, Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Channel {
     Stable,
@@ -14,12 +15,12 @@ pub enum Channel {
 
 impl Default for Channel {
     fn default() -> Self {
-        // Not specifying the channel in features.toml is equivalent to specifying "stable".
         Self::Stable
     }
 }
 
-#[derive(Debug, Clone, Default, Deserialize)]
+/// Rust compiler version info.
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
 pub struct VersionData {
     /// Rust version number, e.g. "1.0.0"
     pub number: String,
@@ -41,7 +42,10 @@ pub struct VersionData {
     pub gh_milestone_id: Option<u64>,
 }
 
-#[derive(Debug, Clone, Default, Deserialize)]
+/// Rust "feature" info for some arbitrary definition of feature.
+///
+/// Not strictly tied to compiler features.
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
 pub struct FeatureData {
     /// Short description to identify the feature
     pub title: String,
@@ -80,12 +84,14 @@ pub struct FeatureData {
     pub items: Vec<String>,
 
     /// The version number at which the feature was stabilized.
+    #[serde(rename = "version")]
     pub version_number: Option<String>,
 }
 
 use alfred::{Item, ItemBuilder};
 
 impl FeatureData {
+    /// Creates an Alfred row item from feature data.
     pub fn to_alfred_item(&self) -> Item<'static> {
         let mut builder = ItemBuilder::new(self.title.clone());
 

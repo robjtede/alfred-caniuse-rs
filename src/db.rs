@@ -1,11 +1,14 @@
 use std::collections::HashMap;
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::models::{FeatureData, VersionData};
 
-#[derive(Debug, Clone, Deserialize)]
+/// The caniuse features
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Db {
+    #[serde(default)]
+    base_url: String,
     versions: HashMap<String, VersionData>,
     features: HashMap<String, FeatureData>,
 }
@@ -13,6 +16,7 @@ pub struct Db {
 impl Default for Db {
     fn default() -> Self {
         Self {
+            base_url: String::new(),
             versions: HashMap::new(),
             features: HashMap::new(),
         }
@@ -20,19 +24,20 @@ impl Default for Db {
 }
 
 impl Db {
+    /// Fetch the database from the given URL.
     pub fn fetch(url: &str) -> eyre::Result<Db> {
-        ureq::get(url)
-            .set("User-Agent", "alfred-caniuse/0.1")
+        let mut db = ureq::get(&format!("{}/features.json", url))
+            .set("user-agent", "alfred-caniuse-rs/0.1")
             .call()?
-            .into_json()
-            .map_err(Into::into)
+            .into_json::<Db>()?;
+
+        db.base_url = url.to_owned();
+
+        Ok(db)
     }
 
-    /// Finds feature and if  version.
-    pub fn lookup<'a>(
-        &'a self,
-        query: &str,
-    ) -> Option<(&'a FeatureData, Option<&'a VersionData>)> {
+    /// Finds a feature given a query string and returns the feature and stabilization version data.
+    pub fn lookup<'a>(&'a self, query: &str) -> Option<(&'a FeatureData, Option<&'a VersionData>)> {
         let feature = self.features.get(query)?;
 
         match feature.version_number.as_deref() {
