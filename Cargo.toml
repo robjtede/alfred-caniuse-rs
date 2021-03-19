@@ -1,6 +1,6 @@
 [package]
 name = "alfred-caniuse-rs"
-version = "0.1.0"
+version = "0.1.2"
 authors = ["Rob Ede <robjtede@icloud.com>"]
 edition = "2018"
 license = "MIT"
@@ -17,5 +17,5 @@ ureq = { version = "2", features = ["json"] }
 zstd = "0.6"
 
 [profile.release]
-lto = true
-opt-level = "z"
+# lto = true
+# opt-level = "z"

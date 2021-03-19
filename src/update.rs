@@ -11,8 +11,8 @@ use serde::{Deserialize, Serialize};
 use crate::cache::cache_dir;
 
 const DAY_IN_SECS: u64 = 3600 * 24;
-const LATEST_ZIP_URL: &str =
-    "https://github.com/robjtede/alfred-caniuse-rs/releases/latest/download/package.zip";
+const LATEST_URL: &str = "https://github.com/robjtede/alfred-caniuse-rs/releases";
+const LATEST_ZIP_PATH: &str = "/latest/download/package.zip";
 const SELF_VERSION: &str = env!("CARGO_PKG_VERSION");
 const UPDATE_CHECK_FILENAME: &str = "update-check.json";
 
@@ -20,7 +20,7 @@ const UPDATE_CHECK_FILENAME: &str = "update-check.json";
 pub fn self_update_check_item() -> Option<alfred::Item<'static>> {
     self_update_check().map(|url| {
         alfred::ItemBuilder::new("A workflow update is available.")
-            .subtitle("Press enter to update.")
+            .subtitle("Press enter to go to download page.")
             .arg(url)
             .into_item()
     })
@@ -35,7 +35,7 @@ fn self_update_check() -> Option<&'static str> {
         Ok(NeedsCheck::No) => return None,
 
         // cached file shows that self is outdated so skip API lookup
-        Ok(NeedsCheck::KnownOutdated) => return Some(LATEST_ZIP_URL),
+        Ok(NeedsCheck::KnownOutdated) => return Some(LATEST_URL),
 
         Err(err) => {
             eprintln!("update check cache failed: {}", err);
@@ -49,7 +49,7 @@ fn self_update_check() -> Option<&'static str> {
 
     // ignore errors from fetching for cases when no internet connection is available
     match self_update_check_inner() {
-        Ok(true) => return Some(LATEST_ZIP_URL),
+        Ok(true) => return Some(LATEST_URL),
         Ok(false) => {
             eprintln!("no update available");
         }
@@ -128,7 +128,8 @@ fn self_update_check_inner() -> eyre::Result<bool> {
         .timeout(std::time::Duration::from_secs(1))
         .build();
 
-    let res = client.get(LATEST_ZIP_URL).call()?;
+    let url = [LATEST_URL, LATEST_ZIP_PATH].concat();
+    let res = client.get(&url).call()?;
     let latest_url = res
         .header("location")
         .ok_or_else(|| eyre!("no location header in update check response"))?;
