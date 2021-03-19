@@ -2,10 +2,17 @@
 //!
 //! Definitions derived from https://github.com/jplatte/caniuse.rs/blob/e9c940047437cccfaf8ff65bcf68f70538877662/build.rs.
 
+use std::{
+    cmp::{self, Ordering},
+    fmt,
+};
+
 use serde::{Deserialize, Serialize};
 
+const RUST_BLOG_ROOT: &str = "https://blog.rust-lang.org/";
+
 /// Versions that have been cut are either stable, beta or nightly.
-#[derive(Copy, Clone, Debug, Deserialize, Serialize)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Channel {
     Stable,
@@ -19,8 +26,38 @@ impl Default for Channel {
     }
 }
 
+impl PartialOrd for Channel {
+    fn partial_cmp(&self, other: &Self) -> Option<cmp::Ordering> {
+        Some(self.cmp(&other))
+    }
+}
+
+impl Ord for Channel {
+    fn cmp(&self, other: &Self) -> cmp::Ordering {
+        let numeric = |&chan| -> u8 {
+            match chan {
+                Channel::Stable => 0,
+                Channel::Beta => 1,
+                Channel::Nightly => 2,
+            }
+        };
+
+        numeric(self).cmp(&numeric(other))
+    }
+}
+
+impl fmt::Display for Channel {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Channel::Stable => f.write_str("stable"),
+            Channel::Beta => f.write_str("beta"),
+            Channel::Nightly => f.write_str("nightly"),
+        }
+    }
+}
+
 /// Rust compiler version info.
-#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize, Serialize)]
 pub struct VersionData {
     /// Rust version number, e.g. "1.0.0"
     pub number: String,
@@ -40,6 +77,56 @@ pub struct VersionData {
 
     /// GitHub milestone id (https://github.com/rust-lang/rust/milestone/{id})
     pub gh_milestone_id: Option<u64>,
+}
+
+impl VersionData {
+    /// Creates an Alfred item from version data.
+    pub fn to_alfred_item(&self) -> alfred::Item<'static> {
+        let mut builder = ItemBuilder::new(format!("v{} ({})", &self.number, &self.channel));
+
+        if let Some(release_date) = self.release_date() {
+            builder.set_subtitle(format!(
+                "Released: {}  |  Press enter to view release post.",
+                release_date.format("%F")
+            ))
+        }
+
+        if let Some(blog_post) = self.blog_post_path.as_deref() {
+            builder.set_arg(format!("{}{}", RUST_BLOG_ROOT, blog_post.to_owned()));
+            builder.set_quicklook_url(format!("{}{}", RUST_BLOG_ROOT, blog_post.to_owned()));
+        };
+
+        builder.into_item()
+    }
+}
+
+impl VersionData {
+    fn release_date(&self) -> Option<time::Date> {
+        self.release_date
+            .as_deref()
+            .and_then(|date| time::Date::parse(date, "%F").ok())
+    }
+}
+
+impl PartialOrd<VersionData> for VersionData {
+    fn partial_cmp(&self, other: &VersionData) -> Option<cmp::Ordering> {
+        self.channel
+            .cmp(&other.channel)
+            .then_with(|| {
+                let self_rel = match self.release_date() {
+                    Some(rel) => rel,
+                    None => return Ordering::Equal,
+                };
+
+                let other_rel = match other.release_date() {
+                    Some(rel) => rel,
+                    None => return Ordering::Equal,
+                };
+
+                self_rel.cmp(&other_rel)
+            })
+            .into()
+    }
 }
 
 /// Rust "feature" info for some arbitrary definition of feature.

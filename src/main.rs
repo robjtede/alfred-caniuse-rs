@@ -24,12 +24,6 @@ fn try_main() -> eyre::Result<Vec<alfred::Item<'static>>> {
     // skip self binary arg
     args.next();
 
-    // TODO: allow empty query to show recent versions
-
-    let query = args
-        .next()
-        .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "no query"))?;
-
     let db = match cache_fetch() {
         Some(db) => db,
         None => {
@@ -39,6 +33,24 @@ fn try_main() -> eyre::Result<Vec<alfred::Item<'static>>> {
         }
     };
 
+    match args.next() {
+        None => show_recent_versions(&db, &mut items),
+        Some(query) if query.is_empty() => show_recent_versions(&db, &mut items),
+
+        Some(query) => match_query(&db, &query, &mut items),
+    }?;
+
+    Ok(items)
+}
+
+fn show_recent_versions(db: &Db, items: &mut Vec<alfred::Item<'static>>) -> eyre::Result<()> {
+    let versions = db.versions_preview().map(|v| v.to_alfred_item());
+    items.extend(versions);
+
+    Ok(())
+}
+
+fn match_query(db: &Db, query: &str, items: &mut Vec<alfred::Item<'static>>) -> eyre::Result<()> {
     // TODO: fuzzy matching
 
     let (feature, _) = db
@@ -48,5 +60,5 @@ fn try_main() -> eyre::Result<Vec<alfred::Item<'static>>> {
     let item = feature.to_alfred_item(CANIUSE_URL);
     items.push(item);
 
-    Ok(items)
+    Ok(())
 }

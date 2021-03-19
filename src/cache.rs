@@ -85,9 +85,9 @@ fn cache_put_inner(db: &Db) -> eyre::Result<()> {
     // ensure containing direction of cache file exists
     fs::create_dir_all(cache_dir())?;
 
-    // we need to reset the created datetime
-    // since the caching strategy relies on it
-    let _ = fs::remove_file(cache_path())?;
+    // we need to reset the created datetime since the caching strategy relies on it
+    // error is ignored to allow cache creation in first instant
+    let _ = fs::remove_file(cache_path());
 
     // if create is successful, any existing file is truncated
     let mut file = fs::File::create(cache_path())?;

@@ -41,6 +41,13 @@ impl Db {
         Ok(db)
     }
 
+    /// Returns an iterator of the most recent Rust versions in reverse chronological order.
+    pub fn versions_preview(&self) -> impl Iterator<Item = VersionData> {
+        let mut versions = self.versions.values().cloned().collect::<Vec<_>>();
+        versions.sort_by(|a, b| a.partial_cmp(&b).unwrap().reverse());
+        versions.into_iter().take(8)
+    }
+
     /// Finds a feature given a query string and returns the feature and stabilization version data.
     pub fn lookup<'a>(&'a self, query: &str) -> Option<(&'a FeatureData, Option<&'a VersionData>)> {
         let feature = self.features.get(query)?;
