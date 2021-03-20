@@ -4,6 +4,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::models::{FeatureData, VersionData};
 
+const UA_NAME: &str = env!("CARGO_PKG_NAME");
+const UA_VERSION: &str = env!("CARGO_PKG_VERSION");
+
 /// The caniuse features
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Db {
@@ -27,7 +30,7 @@ impl Db {
     /// Fetch the database from the given URL.
     pub fn fetch(url: &str) -> eyre::Result<Db> {
         let mut db = ureq::get(&format!("{}/features.json", url))
-            .set("user-agent", "alfred-caniuse-rs/0.1")
+            .set("user-agent", &format!("{}/{}", UA_NAME, UA_VERSION))
             .call()?
             .into_json::<Db>()?;
 
@@ -45,7 +48,7 @@ impl Db {
     pub fn versions_preview(&self) -> impl Iterator<Item = VersionData> {
         let mut versions = self.versions.values().cloned().collect::<Vec<_>>();
         versions.sort_by(|a, b| a.partial_cmp(&b).unwrap().reverse());
-        versions.into_iter().take(8)
+        versions.into_iter().take(10)
     }
 
     /// Finds a feature given a query string and returns the feature and stabilization version data.

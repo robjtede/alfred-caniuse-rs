@@ -7,6 +7,7 @@ use std::{
     fmt,
 };
 
+use alfred::{Item, ItemBuilder, Modifier};
 use serde::{Deserialize, Serialize};
 
 const RUST_BLOG_ROOT: &str = "https://blog.rust-lang.org/";
@@ -81,19 +82,27 @@ pub struct VersionData {
 
 impl VersionData {
     /// Creates an Alfred item from version data.
-    pub fn to_alfred_item(&self) -> alfred::Item<'static> {
+    pub fn to_alfred_item(&self) -> Item<'static> {
         let mut builder = ItemBuilder::new(format!("v{} ({})", &self.number, &self.channel));
 
         if let Some(release_date) = self.release_date() {
-            builder.set_subtitle(format!(
-                "Released: {}  |  Press enter to view release post.",
-                release_date.format("%F")
-            ))
+            // August 16 2019
+            let rel_date_str = release_date.format("%B %d %Y");
+            builder.set_subtitle(format!("Released {}", rel_date_str));
         }
 
         if let Some(blog_post) = self.blog_post_path.as_deref() {
-            builder.set_arg(format!("{}{}", RUST_BLOG_ROOT, blog_post.to_owned()));
-            builder.set_quicklook_url(format!("{}{}", RUST_BLOG_ROOT, blog_post.to_owned()));
+            let blog_post_url = format!("{}{}", RUST_BLOG_ROOT, blog_post.to_owned());
+
+            builder.set_quicklook_url(blog_post_url.clone());
+
+            builder.set_modifier(
+                Modifier::Option,
+                Some("Press enter to view release post."),
+                Some(blog_post_url),
+                true,
+                None,
+            );
         };
 
         builder.into_item()
@@ -180,8 +189,6 @@ pub struct FeatureData {
     #[serde(default)]
     pub slug: String,
 }
-
-use alfred::{Item, ItemBuilder};
 
 impl FeatureData {
     /// Creates an Alfred row item from feature data.
