@@ -5,6 +5,7 @@
         "datetime",
         "quicklook",
         "robjtede",
+        "strsim",
         "ureq",
         "zstd"
     ]

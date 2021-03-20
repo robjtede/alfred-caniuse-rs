@@ -3,6 +3,7 @@
 use std::{env, io};
 
 use alfred_caniuse_rs::{cache_fetch, cache_put, exit_alfred_error, self_update_check_item, Db};
+use eyre::eyre;
 
 const CANIUSE_URL: &str = "https://caniuse.rs";
 
@@ -51,14 +52,24 @@ fn show_recent_versions(db: &Db, items: &mut Vec<alfred::Item<'static>>) -> eyre
 }
 
 fn match_query(db: &Db, query: &str, items: &mut Vec<alfred::Item<'static>>) -> eyre::Result<()> {
-    // TODO: fuzzy matching
+    let features = db.lookup(query);
 
-    let (feature, _) = db
-        .lookup(&query)
-        .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "no feature match"))?;
+    if features.is_empty() {
+        return Err(eyre!("no feature match"));
+    }
 
-    let item = feature.to_alfred_item(CANIUSE_URL);
-    items.push(item);
+    // let (feature, _) = db
+    //     .get_feature(&query)
+    //     .ok_or_else(|| )?;
+
+    // let item = feature.to_alfred_item(CANIUSE_URL);
+    // items.push(item);
+
+    items.extend(
+        features
+            .into_iter()
+            .map(|feat| feat.to_alfred_item(CANIUSE_URL)),
+    );
 
     Ok(())
 }
