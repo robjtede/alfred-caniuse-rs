@@ -38,7 +38,7 @@ fn try_main() -> eyre::Result<Vec<alfred::Item<'static>>> {
         None => show_recent_versions(&db, &mut items),
         Some(query) if query.is_empty() => show_recent_versions(&db, &mut items),
 
-        Some(query) => match_query(&db, &query, &mut items),
+        Some(query) => match_query(&db, &query.to_lowercase(), &mut items),
     }?;
 
     Ok(items)

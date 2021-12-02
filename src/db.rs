@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
-use crate::models::{FeatureData, CompilerVersionData};
+use crate::models::{CompilerVersionData, FeatureData};
 
 const UA_NAME: &str = env!("CARGO_PKG_NAME");
 const UA_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -74,7 +74,7 @@ impl Db {
         // TODO: totally no logic to any of this
 
         for feature in self.features.values() {
-            if feature.slug.contains(query) {
+            if feature.slug.to_lowercase().contains(query) {
                 feats.push(feature);
                 continue;
             }
@@ -82,45 +82,45 @@ impl Db {
             if feature
                 .flag
                 .as_deref()
-                .map(|flag| flag.contains(query))
+                .map(|flag| flag.to_lowercase().contains(query))
                 .unwrap_or(false)
             {
                 feats.push(feature);
                 continue;
             }
 
-            if feature.title.contains(query) {
+            if feature.title.to_lowercase().contains(query) {
                 feats.push(feature);
                 continue;
             }
 
             for item in &feature.items {
-                if item.contains(query) {
+                if item.to_lowercase().contains(query) {
                     feats.push(feature);
                     continue;
                 }
             }
 
             for item in &feature.aliases {
-                if item.contains(query) {
+                if item.to_lowercase().contains(query) {
                     feats.push(feature);
                     continue;
                 }
             }
 
-            if strsim::sorensen_dice(query, &feature.slug) > 0.65 {
+            if strsim::sorensen_dice(query, &feature.slug.to_lowercase()) > 0.65 {
                 feats.push(feature);
                 continue;
             }
 
             if let Some(flag) = feature.flag.as_deref() {
-                if strsim::sorensen_dice(query, flag) > 0.65 {
+                if strsim::sorensen_dice(query, &flag.to_lowercase()) > 0.65 {
                     feats.push(feature);
                     continue;
                 }
             }
 
-            if strsim::sorensen_dice(query, &feature.title) > 0.4 {
+            if strsim::sorensen_dice(query, &feature.title.to_lowercase()) > 0.4 {
                 feats.push(feature);
                 continue;
             }
