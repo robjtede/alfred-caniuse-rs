@@ -30,9 +30,14 @@ pub fn self_update_check_item() -> Option<alfred::Item<'static>> {
 fn self_update_check() -> Option<&'static str> {
     match self_need_update_check() {
         // fall through to update check
-        Ok(NeedsCheck::Yes) => {}
+        Ok(NeedsCheck::Yes) => {
+            eprintln!("update check will be perform")
+        }
 
-        Ok(NeedsCheck::No) => return None,
+        Ok(NeedsCheck::No) => {
+            eprintln!("skip update check");
+            return None;
+        }
 
         // cached file shows that self is outdated so skip API lookup
         Ok(NeedsCheck::KnownOutdated) => return Some(LATEST_URL),
@@ -47,8 +52,7 @@ fn self_update_check() -> Option<&'static str> {
             // attempt to clean up any potentially corrupted cache state
             let _ = fs::remove_file(check_file);
 
-            // skip update check for this run so allow fs time to remove file
-            return None;
+            // fall through to update check
         }
     }
 
