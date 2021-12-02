@@ -37,12 +37,17 @@ fn self_update_check() -> Option<&'static str> {
         // cached file shows that self is outdated so skip API lookup
         Ok(NeedsCheck::KnownOutdated) => return Some(LATEST_URL),
 
+        // eg. time::Date changes it's serde format causing json deserialization to fail
         Err(err) => {
+            let check_file = cache_dir().join(UPDATE_CHECK_FILENAME);
+
             eprintln!("update check cache failed: {}", err);
+            eprintln!("deleting update check file from: {:?}", check_file);
 
             // attempt to clean up any potentially corrupted cache state
-            let _ = fs::remove_file(UPDATE_CHECK_FILENAME);
+            let _ = fs::remove_file(check_file);
 
+            // skip update check for this run so allow fs time to remove file
             return None;
         }
     }
