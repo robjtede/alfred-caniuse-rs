@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
-use crate::models::{FeatureData, VersionData};
+use crate::models::{FeatureData, CompilerVersionData};
 
 const UA_NAME: &str = env!("CARGO_PKG_NAME");
 const UA_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -12,7 +12,7 @@ const UA_VERSION: &str = env!("CARGO_PKG_VERSION");
 pub struct Db {
     #[serde(default)]
     base_url: String,
-    versions: HashMap<String, VersionData>,
+    versions: HashMap<String, CompilerVersionData>,
     features: HashMap<String, FeatureData>,
 }
 
@@ -45,9 +45,9 @@ impl Db {
     }
 
     /// Returns an iterator of the most recent Rust versions in reverse chronological order.
-    pub fn versions_preview(&self) -> impl Iterator<Item = VersionData> {
+    pub fn versions_preview(&self) -> impl Iterator<Item = CompilerVersionData> {
         let mut versions = self.versions.values().cloned().collect::<Vec<_>>();
-        versions.sort_by(|a, b| a.partial_cmp(&b).unwrap().reverse());
+        versions.sort_by(|a, b| a.partial_cmp(b).unwrap().reverse());
         versions.into_iter().take(10)
     }
 
@@ -55,7 +55,7 @@ impl Db {
     pub fn get_feature<'a>(
         &'a self,
         name: &str,
-    ) -> Option<(&'a FeatureData, Option<&'a VersionData>)> {
+    ) -> Option<(&'a FeatureData, Option<&'a CompilerVersionData>)> {
         let feature = self.features.get(name)?;
 
         match feature.version_number.as_deref() {
@@ -79,12 +79,29 @@ impl Db {
                 continue;
             }
 
+            if feature
+                .flag
+                .as_deref()
+                .map(|flag| flag.contains(query))
+                .unwrap_or(false)
+            {
+                feats.push(feature);
+                continue;
+            }
+
             if feature.title.contains(query) {
                 feats.push(feature);
                 continue;
             }
 
             for item in &feature.items {
+                if item.contains(query) {
+                    feats.push(feature);
+                    continue;
+                }
+            }
+
+            for item in &feature.aliases {
                 if item.contains(query) {
                     feats.push(feature);
                     continue;

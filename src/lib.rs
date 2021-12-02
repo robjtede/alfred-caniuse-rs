@@ -12,7 +12,7 @@ mod update;
 
 pub use self::cache::{cache_fetch, cache_put};
 pub use self::db::Db;
-pub use self::models::{FeatureData, VersionData};
+pub use self::models::{FeatureData, CompilerVersionData};
 pub use self::update::self_update_check_item;
 
 /// Crate Alfred readable error row.

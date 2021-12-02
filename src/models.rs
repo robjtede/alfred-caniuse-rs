@@ -9,6 +9,7 @@ use std::{
 
 use alfred::{Item, ItemBuilder, Modifier};
 use serde::{Deserialize, Serialize};
+use time::{macros::format_description, Date};
 
 const RUST_BLOG_ROOT: &str = "https://blog.rust-lang.org/";
 
@@ -29,7 +30,7 @@ impl Default for Channel {
 
 impl PartialOrd for Channel {
     fn partial_cmp(&self, other: &Self) -> Option<cmp::Ordering> {
-        Some(self.cmp(&other))
+        Some(self.cmp(other))
     }
 }
 
@@ -59,7 +60,7 @@ impl fmt::Display for Channel {
 
 /// Rust compiler version info.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize, Serialize)]
-pub struct VersionData {
+pub struct CompilerVersionData {
     /// Rust version number, e.g. "1.0.0"
     pub number: String,
 
@@ -80,14 +81,16 @@ pub struct VersionData {
     pub gh_milestone_id: Option<u64>,
 }
 
-impl VersionData {
+impl CompilerVersionData {
     /// Creates an Alfred item from version data.
     pub fn to_alfred_item(&self) -> Item<'static> {
         let mut builder = ItemBuilder::new(format!("v{} ({})", &self.number, &self.channel));
 
         if let Some(release_date) = self.release_date() {
             // August 16 2019
-            let rel_date_str = release_date.format("%B %d %Y");
+            let rel_date_str = release_date
+                .format(format_description!("[month repr:long] [day], [year]"))
+                .unwrap();
             builder.set_subtitle(format!("Released {}", rel_date_str));
         }
 
@@ -109,16 +112,16 @@ impl VersionData {
     }
 }
 
-impl VersionData {
-    fn release_date(&self) -> Option<time::Date> {
-        self.release_date
-            .as_deref()
-            .and_then(|date| time::Date::parse(date, "%F").ok())
+impl CompilerVersionData {
+    fn release_date(&self) -> Option<Date> {
+        self.release_date.as_deref().and_then(|date| {
+            Date::parse(date, format_description!("[year repr:full]-[month]-[day]")).ok()
+        })
     }
 }
 
-impl PartialOrd<VersionData> for VersionData {
-    fn partial_cmp(&self, other: &VersionData) -> Option<cmp::Ordering> {
+impl PartialOrd<CompilerVersionData> for CompilerVersionData {
+    fn partial_cmp(&self, other: &CompilerVersionData) -> Option<cmp::Ordering> {
         self.channel
             .cmp(&other.channel)
             .then_with(|| {
@@ -183,6 +186,10 @@ pub struct FeatureData {
     #[serde(rename = "version")]
     pub version_number: Option<String>,
 
+    /// Alternatives to the title
+    #[serde(default)]
+    pub aliases: Vec<String>,
+
     /// Unique "feature" name for caniuse links.
     ///
     /// Filled in after fetch.
@@ -208,6 +215,27 @@ impl FeatureData {
             builder.set_text_large_type(" ".to_owned());
         } else {
             builder.set_text_large_type(self.items.join("\n"));
+        }
+
+        if let Some(ref doc_path) = self.doc_path {
+            let doc_url = format!("https://doc.rust-lang.org/{}", doc_path);
+            builder.set_quicklook_url(doc_url.clone());
+
+            builder.set_modifier(
+                Modifier::Option,
+                Some("Press enter to see docs."),
+                Some(doc_url),
+                true,
+                None,
+            );
+        } else {
+            builder.set_modifier(
+                Modifier::Option,
+                Some("No docs available."),
+                None::<String>,
+                false,
+                None,
+            );
         }
 
         builder.into_item()
