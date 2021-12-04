@@ -13,14 +13,15 @@ the install.
 - [x] Fuzzy feature matching
 - [x] Fast results
 - [x] Feature db caching
-- [x] Self update notifications
 - [x] Recent quick version lookup
+- [x] Self update notifications
 
 Alfred keyword is `caniuse`.
 
 ## Rust Feature Lookup
 
 - Type a query after caniuse.
+- Option+Enter to open item's documentation.
 
 ## Recent Version Summary
 
