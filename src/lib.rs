@@ -1,7 +1,7 @@
 //! Caniuse
 
-#![deny(rust_2018_idioms, nonstandard_style)]
-#![warn(missing_docs)]
+#![deny(rust_2018_idioms, nonstandard_style, future_incompatible)]
+#![warn(missing_docs, clippy::uninlined_format_args)]
 
 use std::{fmt, io, process};
 
@@ -20,7 +20,7 @@ pub use self::{
 /// Crate Alfred readable error row.
 pub fn alfred_error(err: impl fmt::Display + 'static) -> alfred::Item<'static> {
     alfred::ItemBuilder::new("error")
-        .subtitle(format!("{}", err))
+        .subtitle(err.to_string())
         .valid(false)
         .into_item()
 }

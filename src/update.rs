@@ -46,8 +46,8 @@ fn self_update_check() -> Option<&'static str> {
         Err(err) => {
             let check_file = cache_dir().join(UPDATE_CHECK_FILENAME);
 
-            eprintln!("update check cache failed: {}", err);
-            eprintln!("deleting update check file from: {:?}", check_file);
+            eprintln!("update check cache failed: {err}");
+            eprintln!("deleting update check file from: {check_file:?}");
 
             // attempt to clean up any potentially corrupted cache state
             let _ = fs::remove_file(check_file);
@@ -63,7 +63,7 @@ fn self_update_check() -> Option<&'static str> {
             eprintln!("no update available");
         }
         Err(err) => {
-            eprintln!("error fetching update: {}", err);
+            eprintln!("error fetching update: {err}");
         }
     }
 

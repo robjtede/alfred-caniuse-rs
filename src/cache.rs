@@ -23,12 +23,12 @@ pub fn cache_fetch() -> Option<Db> {
         // if any error occurs regarding file access or decoding
         // we try to delete the file to reset state for next time
         Err(err) => {
-            eprintln!("cache fetch error: {}", err);
+            eprintln!("cache fetch error: {err}");
 
             // attempt clean up
             // errors on this are unlikely and are therefore ignored
             if let Err(err) = fs::remove_file(cache_path()) {
-                eprintln!("failed to clean up cache file: {}", err);
+                eprintln!("failed to clean up cache file: {err}");
             }
 
             None
@@ -71,12 +71,12 @@ pub fn cache_put(db: &Db) {
     // if any error occurs writing file access or encoding
     // we try to delete the file to reset state for next time
     if let Err(err) = cache_put_inner(db) {
-        eprintln!("cache fetch error: {}", err);
+        eprintln!("cache fetch error: {err}");
 
         // attempt clean up
         // errors on this are unlikely and are therefore ignored
         if let Err(err) = fs::remove_file(cache_path()) {
-            eprintln!("failed to clean up cache file: {}", err);
+            eprintln!("failed to clean up cache file: {err}");
         }
     }
 }

@@ -91,7 +91,7 @@ impl CompilerVersionData {
             let rel_date_str = release_date
                 .format(format_description!("[month repr:long] [day], [year]"))
                 .unwrap();
-            builder.set_subtitle(format!("Released {}", rel_date_str));
+            builder.set_subtitle(format!("Released {rel_date_str}"));
         }
 
         if let Some(blog_post) = self.blog_post_path.as_deref() {
@@ -203,7 +203,7 @@ impl FeatureData {
         let mut builder = ItemBuilder::new(self.title.clone());
 
         match self.version_number.as_deref() {
-            Some(v) => builder.set_subtitle(format!("since v{}", v)),
+            Some(v) => builder.set_subtitle(format!("since v{v}")),
             None => builder.set_subtitle("unstable"),
         };
 
@@ -218,7 +218,7 @@ impl FeatureData {
         }
 
         if let Some(ref doc_path) = self.doc_path {
-            let doc_url = format!("https://doc.rust-lang.org/{}", doc_path);
+            let doc_url = format!("https://doc.rust-lang.org/{doc_path}");
             builder.set_quicklook_url(doc_url.clone());
 
             builder.set_modifier(

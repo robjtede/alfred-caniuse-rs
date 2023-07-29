@@ -1,4 +1,5 @@
-#![deny(rust_2018_idioms, nonstandard_style)]
+#![deny(rust_2018_idioms, nonstandard_style, future_incompatible)]
+#![warn(clippy::uninlined_format_args)]
 
 use std::{env, io};
 

@@ -8,7 +8,7 @@ const UA_NAME: &str = env!("CARGO_PKG_NAME");
 const UA_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// The caniuse features
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
 pub struct Db {
     #[serde(default)]
     base_url: String,
@@ -16,21 +16,11 @@ pub struct Db {
     features: HashMap<String, FeatureData>,
 }
 
-impl Default for Db {
-    fn default() -> Self {
-        Self {
-            base_url: String::new(),
-            versions: HashMap::new(),
-            features: HashMap::new(),
-        }
-    }
-}
-
 impl Db {
     /// Fetch the database from the given URL.
     pub fn fetch(url: &str) -> eyre::Result<Db> {
-        let mut db = ureq::get(&format!("{}/features.json", url))
-            .set("user-agent", &format!("{}/{}", UA_NAME, UA_VERSION))
+        let mut db = ureq::get(&format!("{url}/features.json"))
+            .set("user-agent", &format!("{UA_NAME}/{UA_VERSION}"))
             .call()?
             .into_json::<Db>()?;
 
