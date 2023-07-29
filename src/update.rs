@@ -2,7 +2,7 @@
 
 use std::{
     fs,
-    io::{self, Write},
+    io::{self, Write as _},
 };
 
 use eyre::eyre;

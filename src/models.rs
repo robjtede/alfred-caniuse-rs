@@ -2,10 +2,7 @@
 //!
 //! Definitions derived from https://github.com/jplatte/caniuse.rs/blob/e9c940047437cccfaf8ff65bcf68f70538877662/build.rs.
 
-use std::{
-    cmp::{self, Ordering},
-    fmt,
-};
+use std::{cmp::Ordering, fmt};
 
 use alfred::{Item, ItemBuilder, Modifier};
 use serde::{Deserialize, Serialize};
@@ -29,13 +26,13 @@ impl Default for Channel {
 }
 
 impl PartialOrd for Channel {
-    fn partial_cmp(&self, other: &Self) -> Option<cmp::Ordering> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
 impl Ord for Channel {
-    fn cmp(&self, other: &Self) -> cmp::Ordering {
+    fn cmp(&self, other: &Self) -> Ordering {
         let numeric = |&chan| -> u8 {
             match chan {
                 Channel::Stable => 0,
@@ -121,7 +118,7 @@ impl CompilerVersionData {
 }
 
 impl PartialOrd<CompilerVersionData> for CompilerVersionData {
-    fn partial_cmp(&self, other: &CompilerVersionData) -> Option<cmp::Ordering> {
+    fn partial_cmp(&self, other: &CompilerVersionData) -> Option<Ordering> {
         self.channel
             .cmp(&other.channel)
             .then_with(|| {

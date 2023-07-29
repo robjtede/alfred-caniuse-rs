@@ -1,6 +1,6 @@
 use std::{
     fs,
-    io::{self, Write},
+    io::{self, Write as _},
     path::PathBuf,
     time::Duration,
 };
