@@ -4,9 +4,7 @@
 
 # Installation
 
-Go to [releases](https://github.com/robjtede/alfred-caniuse-rs/releases) and download the
-`*.alfredworkflow` file from the most recent release. Open workflow file for Alfred to prompt
-the install.
+Go to [releases](https://github.com/robjtede/alfred-caniuse-rs/releases) and download the `*.alfredworkflow` file from the most recent release. Open workflow file for Alfred to prompt the install.
 
 # Features
 
