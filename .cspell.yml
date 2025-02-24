@@ -1,0 +1,10 @@
+version: "0.2"
+words:
+  - caniuse
+  - concat
+  - datetime
+  - quicklook
+  - robjtede
+  - strsim
+  - ureq
+  - zstd
