@@ -1,10 +1,16 @@
 version: "0.2"
 words:
   - caniuse
+  - clippy
   - concat
   - datetime
+  - docsrs
+  - nixpkgs
+  - pkgs
   - quicklook
   - robjtede
+  - serde
   - strsim
+  - taplo
   - ureq
   - zstd

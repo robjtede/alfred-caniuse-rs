@@ -6,7 +6,7 @@ use std::{cmp::Ordering, fmt};
 
 use alfred::{Item, ItemBuilder, Modifier};
 use serde::{Deserialize, Serialize};
-use time::{macros::format_description, Date};
+use time::{Date, macros::format_description};
 
 const RUST_BLOG_ROOT: &str = "https://blog.rust-lang.org/";
 

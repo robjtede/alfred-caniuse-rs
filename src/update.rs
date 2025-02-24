@@ -3,6 +3,7 @@
 use std::{
     fs,
     io::{self, Write as _},
+    time::Duration,
 };
 
 use eyre::eyre;
@@ -132,16 +133,19 @@ fn self_need_update_check() -> eyre::Result<NeedsCheck> {
 
 // Makes API call to GitHub to check latest
 fn self_update_check_inner() -> eyre::Result<bool> {
-    let client = ureq::builder()
-        .redirects(0)
-        .timeout(std::time::Duration::from_secs(1))
-        .build();
+    let client = ureq::Agent::config_builder()
+        .max_redirects(0)
+        .timeout_global(Some(Duration::from_secs(1)))
+        .build()
+        .new_agent();
 
     let url = [LATEST_URL, LATEST_ZIP_PATH].concat();
     let res = client.get(&url).call()?;
     let latest_url = res
-        .header("location")
-        .ok_or_else(|| eyre!("no location header in update check response"))?;
+        .headers()
+        .get("location")
+        .ok_or_else(|| eyre!("no location header in update check response"))?
+        .to_str()?;
 
     // ensure containing direction of cache file exists
     fs::create_dir_all(cache_dir())?;

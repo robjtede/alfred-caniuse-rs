@@ -13,7 +13,7 @@ clippy-watch:
 
 # Apply possible linting fixes in the workspace.
 clippy-fix *args:
-    cargo clippy --workspace --all-features --fix {{args}}
+    cargo clippy --workspace --all-features --fix {{ args }}
 
 # Test workspace.
 test:
@@ -30,7 +30,7 @@ doc-watch:
     cargo watch -- RUSTDOCFLAGS="--cfg=docsrs" cargo +nightly doc --no-deps --workspace --all-features
 
 # Check project formatting.
-check:
+check: && clippy
     just --unstable --fmt --check
     npx -y prettier --check '**/*.md'
     taplo lint

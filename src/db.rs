@@ -20,9 +20,10 @@ impl Db {
     /// Fetch the database from the given URL.
     pub fn fetch(url: &str) -> eyre::Result<Db> {
         let mut db = ureq::get(&format!("{url}/features.json"))
-            .set("user-agent", &format!("{UA_NAME}/{UA_VERSION}"))
+            .header("user-agent", &format!("{UA_NAME}/{UA_VERSION}"))
             .call()?
-            .into_json::<Db>()?;
+            .into_body()
+            .read_json::<Db>()?;
 
         db.base_url = url.to_owned();
 
