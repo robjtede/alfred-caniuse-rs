@@ -1,6 +1,6 @@
 # alfred-caniuse-rs
 
-> Rust feature support from [caniuse.rs](https://caniuse.rs) as an Alfred workflow.
+> Rust feature support from [caniuse-rs](https://caniuse-rs.x52.dev/) as an Alfred workflow.
 
 # Installation
 
