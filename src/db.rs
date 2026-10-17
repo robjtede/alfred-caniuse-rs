@@ -58,11 +58,12 @@ impl Db {
         }
     }
 
-    /// Fuzzy finds ~up to 20~ of the most relevant features in the database.
+    /// Finds features in relevance order.
+    ///
+    /// Exact slug, flag, or title matches come first, then substring matches, then fuzzy
+    /// matches. Features with the same match rank are sorted by slug.
     pub fn lookup<'a>(&'a self, query: &str) -> Vec<&'a FeatureData> {
         let mut feats = vec![];
-
-        // TODO: totally no logic to any of this
 
         'features: for feature in self.features.values() {
             if feature.slug.to_lowercase().contains(query) {
@@ -116,6 +117,33 @@ impl Db {
                 continue;
             }
         }
+
+        feats.sort_by_cached_key(|feature| {
+            let slug = feature.slug.to_lowercase();
+            let flag = feature.flag.as_deref().map(str::to_lowercase);
+            let title = feature.title.to_lowercase();
+
+            let rank = if slug == query || flag.as_deref() == Some(query) || title == query {
+                0
+            } else if slug.contains(query)
+                || flag.as_deref().is_some_and(|flag| flag.contains(query))
+                || title.contains(query)
+                || feature
+                    .items
+                    .iter()
+                    .any(|item| item.to_lowercase().contains(query))
+                || feature
+                    .aliases
+                    .iter()
+                    .any(|alias| alias.to_lowercase().contains(query))
+            {
+                1
+            } else {
+                2
+            };
+
+            (rank, feature.slug.as_str())
+        });
 
         feats
     }
