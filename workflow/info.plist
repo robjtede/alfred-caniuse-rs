@@ -1,0 +1,187 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>bundleid</key>
+	<string>dev.robjtede.caniuse-rs</string>
+	<key>connections</key>
+	<dict>
+		<key>4AF16FC8-A975-48D3-8548-A5ADDBFA870C</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>8364958B-A06B-4802-B396-195E5E11C150</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
+		<key>54823BEA-0489-434F-82C9-0A979FEE1D41</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>4AF16FC8-A975-48D3-8548-A5ADDBFA870C</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
+	</dict>
+	<key>createdby</key>
+	<string>Rob Ede</string>
+	<key>description</key>
+	<string>Rust Feature &amp; Version Search</string>
+	<key>disabled</key>
+	<false/>
+	<key>name</key>
+	<string>caniuse.rs</string>
+	<key>objects</key>
+	<array>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>alfredfiltersresults</key>
+				<false/>
+				<key>alfredfiltersresultsmatchmode</key>
+				<integer>0</integer>
+				<key>argumenttreatemptyqueryasnil</key>
+				<false/>
+				<key>argumenttrimmode</key>
+				<integer>0</integer>
+				<key>argumenttype</key>
+				<integer>1</integer>
+				<key>escaping</key>
+				<integer>102</integer>
+				<key>keyword</key>
+				<string>caniuse</string>
+				<key>queuedelaycustom</key>
+				<integer>3</integer>
+				<key>queuedelayimmediatelyinitially</key>
+				<true/>
+				<key>queuedelaymode</key>
+				<integer>0</integer>
+				<key>queuemode</key>
+				<integer>2</integer>
+				<key>runningsubtext</key>
+				<string>Searching for "{query}"</string>
+				<key>script</key>
+				<string>./caniuse "$1"</string>
+				<key>scriptargtype</key>
+				<integer>1</integer>
+				<key>scriptfile</key>
+				<string></string>
+				<key>subtext</key>
+				<string></string>
+				<key>title</key>
+				<string>Search Rust Features &amp; Versions</string>
+				<key>type</key>
+				<integer>0</integer>
+				<key>withspace</key>
+				<true/>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.input.scriptfilter</string>
+			<key>uid</key>
+			<string>54823BEA-0489-434F-82C9-0A979FEE1D41</string>
+			<key>version</key>
+			<integer>3</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>browser</key>
+				<string></string>
+				<key>spaces</key>
+				<string></string>
+				<key>url</key>
+				<string>{query}</string>
+				<key>utf8</key>
+				<true/>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.action.openurl</string>
+			<key>uid</key>
+			<string>8364958B-A06B-4802-B396-195E5E11C150</string>
+			<key>version</key>
+			<integer>1</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>conditions</key>
+				<array>
+					<dict>
+						<key>inputstring</key>
+						<string></string>
+						<key>matchcasesensitive</key>
+						<false/>
+						<key>matchmode</key>
+						<integer>0</integer>
+						<key>matchstring</key>
+						<string></string>
+						<key>outputlabel</key>
+						<string>blank</string>
+						<key>uid</key>
+						<string>C094E794-DC7F-479D-93E0-6178CA52E392</string>
+					</dict>
+				</array>
+				<key>elselabel</key>
+				<string>url</string>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.utility.conditional</string>
+			<key>uid</key>
+			<string>4AF16FC8-A975-48D3-8548-A5ADDBFA870C</string>
+			<key>version</key>
+			<integer>1</integer>
+		</dict>
+	</array>
+	<key>readme</key>
+	<string>Rust Feature &amp; Version Search
+Based on data from https://caniuse.rs
+
+This Workflow Code:
+https://github.com/robjtede/alfred-caniuse-rs
+
+caniuse.rs code:
+https://github.com/jplatte/caniuse.rs
+
+Credit to Jonas Platte (@jplatte) and contributors for the caniuse.rs website and data.</string>
+	<key>uidata</key>
+	<dict>
+		<key>4AF16FC8-A975-48D3-8548-A5ADDBFA870C</key>
+		<dict>
+			<key>xpos</key>
+			<integer>485</integer>
+			<key>ypos</key>
+			<integer>395</integer>
+		</dict>
+		<key>54823BEA-0489-434F-82C9-0A979FEE1D41</key>
+		<dict>
+			<key>xpos</key>
+			<integer>285</integer>
+			<key>ypos</key>
+			<integer>375</integer>
+		</dict>
+		<key>8364958B-A06B-4802-B396-195E5E11C150</key>
+		<dict>
+			<key>xpos</key>
+			<integer>620</integer>
+			<key>ypos</key>
+			<integer>390</integer>
+		</dict>
+	</dict>
+	<key>variablesdontexport</key>
+	<array/>
+	<key>version</key>
+	<string>0.4.1</string>
+	<key>webaddress</key>
+	<string>https://robjtede.dev</string>
+</dict>
+</plist>
