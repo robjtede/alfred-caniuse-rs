@@ -7,6 +7,7 @@ use std::{
 };
 
 use eyre::eyre;
+use semver::Version;
 use serde::{Deserialize, Serialize};
 
 use crate::cache::cache_dir;
@@ -147,17 +148,13 @@ fn self_update_check_inner() -> eyre::Result<bool> {
         .ok_or_else(|| eyre!("no location header in update check response"))?
         .to_str()?;
 
+    let update_needed = release_is_newer(latest_url, SELF_VERSION)?;
+
     // ensure containing direction of cache file exists
     fs::create_dir_all(cache_dir())?;
 
     let update_check_cache_path = cache_dir().join(UPDATE_CHECK_FILENAME);
     let mut file = fs::File::create(&update_check_cache_path)?;
-
-    // for some download URL like:
-    // update-server.com/release/v1.2.3/download
-    // it should only be required that the current version exists somewhere in that URL
-    // to be considered the latest to avoid needing regex and oddities with v* prefixes
-    let update_needed = !latest_url.contains(SELF_VERSION);
 
     let last_check = UpdateCheck {
         update_needed,
@@ -172,4 +169,120 @@ fn self_update_check_inner() -> eyre::Result<bool> {
     eprintln!("checking cache at {:?}", &update_check_cache_path);
 
     Ok(update_needed)
+}
+
+fn release_is_newer(location: &str, current_version: &str) -> eyre::Result<bool> {
+    let release_tag = location
+        .strip_prefix(LATEST_URL)
+        .and_then(|path| path.strip_prefix("/download/"))
+        .and_then(|path| path.strip_suffix("/package.zip"))
+        .ok_or_else(|| eyre!("unexpected release download URL: {location}"))?;
+
+    let latest_version = Version::parse(release_tag.strip_prefix('v').unwrap_or(release_tag))?;
+    let current_version = Version::parse(current_version)?;
+
+    Ok(latest_version.cmp_precedence(&current_version).is_gt())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::release_is_newer;
+
+    #[test]
+    fn newer_release_with_shared_version_prefix_is_an_update() {
+        assert!(release_is_newer(
+            "https://github.com/robjtede/alfred-caniuse-rs/releases/download/v0.4.10/package.zip",
+            "0.4.1",
+        )
+        .unwrap());
+    }
+
+    #[test]
+    fn matching_release_tag_is_not_an_update() {
+        for tag in ["v0.4.1", "0.4.1"] {
+            let location = format!(
+                "https://github.com/robjtede/alfred-caniuse-rs/releases/download/{tag}/package.zip"
+            );
+
+            assert!(!release_is_newer(&location, "0.4.1").unwrap());
+        }
+    }
+
+    #[test]
+    fn release_without_v_prefix_is_an_update() {
+        assert!(release_is_newer(
+            "https://github.com/robjtede/alfred-caniuse-rs/releases/download/0.4.10/package.zip",
+            "0.4.1",
+        )
+        .unwrap());
+    }
+
+    #[test]
+    fn older_release_is_not_an_update() {
+        assert!(!release_is_newer(
+            "https://github.com/robjtede/alfred-caniuse-rs/releases/download/v0.4.1/package.zip",
+            "0.4.10",
+        )
+        .unwrap());
+    }
+
+    #[test]
+    fn final_release_updates_prerelease() {
+        assert!(release_is_newer(
+            "https://github.com/robjtede/alfred-caniuse-rs/releases/download/v1.0.0/package.zip",
+            "1.0.0-rc.1",
+        )
+        .unwrap());
+    }
+
+    #[test]
+    fn prerelease_does_not_replace_final_release() {
+        assert!(!release_is_newer(
+            "https://github.com/robjtede/alfred-caniuse-rs/releases/download/v1.0.0-rc.1/package.zip",
+            "1.0.0",
+        )
+        .unwrap());
+    }
+
+    #[test]
+    fn prerelease_numbers_use_numeric_order() {
+        assert!(release_is_newer(
+            "https://github.com/robjtede/alfred-caniuse-rs/releases/download/v1.0.0-rc.10/package.zip",
+            "1.0.0-rc.2",
+        )
+        .unwrap());
+    }
+
+    #[test]
+    fn build_metadata_does_not_change_release_precedence() {
+        for (tag, current_version) in [
+            ("v0.4.1+build.2", "0.4.1+build.1"),
+            ("v0.4.1+build.1", "0.4.1+build.2"),
+            ("v0.4.1+build.1", "0.4.1"),
+        ] {
+            let location = format!(
+                "https://github.com/robjtede/alfred-caniuse-rs/releases/download/{tag}/package.zip"
+            );
+
+            assert!(!release_is_newer(&location, current_version).unwrap());
+        }
+    }
+
+    #[test]
+    fn malformed_or_unexpected_release_urls_are_errors() {
+        for location in [
+            "https://example.com/package.zip",
+            "https://example.com/releases/download/v0.4.10/package.zip",
+            "https://github.com/robjtede/other/releases/download/v0.4.10/package.zip",
+            "https://example.com/?next=https://github.com/robjtede/alfred-caniuse-rs/releases/download/v0.4.10/package.zip",
+            "https://github.com/robjtede/alfred-caniuse-rs/releases/tag/v0.4.10",
+            "https://github.com/robjtede/alfred-caniuse-rs/releases/download//package.zip",
+            "https://github.com/robjtede/alfred-caniuse-rs/releases/download/vnot-a-version/package.zip",
+            "https://github.com/robjtede/alfred-caniuse-rs/releases/download/v0.4.10/other.zip",
+            "https://github.com/robjtede/alfred-caniuse-rs/releases/download/v0.4.10/extra/package.zip",
+            "https://github.com/robjtede/alfred-caniuse-rs/releases/download/v0.4.10/package.zip?next=/releases/download/v0.4.1/package.zip",
+        ] {
+            assert!(release_is_newer(location, "0.4.1").is_err(), "{location}");
+        }
+    }
 }
