@@ -38,7 +38,7 @@ Merge the release PR to create a draft GitHub release. The workflow then builds 
 - `package.zip`: a copy of the Alfred workflow for the update checker.
 - `SHA256SUMS`: SHA-256 checksums for the archives.
 
-Publish the draft release after the assets are uploaded. The workflow generates build provenance for the assets. Releases use Git tags to track versions and require only `GITHUB_TOKEN`. In the repository's Actions settings, enable **Allow GitHub Actions to create and approve pull requests**.
+The workflow generates build provenance and publishes the draft release after all assets are uploaded. The [x52 release tools](https://github.com/x52dev/nix/tree/main/release-tools) add release status comments to the release PR. Releases use Git tags to track versions and require only `GITHUB_TOKEN`. In the repository's Actions settings, enable **Allow GitHub Actions to create and approve pull requests**.
 
 To build the same assets locally on macOS, install both Rust targets and run the release recipe:
 

@@ -34,6 +34,23 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
 
+      - name: Install Nix
+        if: ${{ steps.release-plz.outputs.releases_created == 'true' }}
+        uses: nixbuild/nix-quick-install-action@9f63be77f412a248c9d9a65a4c82cf066cdf8f0c # v35
+
+      - name: Enter Nix devshell
+        if: ${{ steps.release-plz.outputs.releases_created == 'true' }}
+        uses: nicknovitski/nix-develop@9be7cfb4b10451d3390a75dc18ad0465bed4932a # v1.2.1
+        with:
+          arguments: .#ci-release
+
+      - name: Comment on release PR
+        if: ${{ steps.release-plz.outputs.releases_created == 'true' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASES_JSON: ${{ steps.release-plz.outputs.releases }}
+        run: x52-comment-release-pr "$RELEASES_JSON" "$GITHUB_SHA"
+
   upload-assets:
     name: Upload release assets
     needs: release
@@ -84,3 +101,39 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh release upload "$RELEASE_TAG" target/release-assets/* --clobber
+
+  publish-release:
+    name: Publish release
+    needs:
+      - release
+      - upload-assets
+    if: ${{ needs.release.outputs.releases_created == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASES_JSON: ${{ needs.release.outputs.releases }}
+      RELEASE_TAG: ${{ fromJSON(needs.release.outputs.releases)[0].tag }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install Nix
+        uses: nixbuild/nix-quick-install-action@9f63be77f412a248c9d9a65a4c82cf066cdf8f0c # v35
+
+      - name: Enter Nix devshell
+        uses: nicknovitski/nix-develop@9be7cfb4b10451d3390a75dc18ad0465bed4932a # v1.2.1
+        with:
+          arguments: .#ci-release
+
+      - name: Publish draft release
+        run: gh release edit "$RELEASE_TAG" --draft=false --latest
+
+      - name: Comment on release PR
+        run: x52-comment-release-assets-uploaded "$RELEASES_JSON" "$GITHUB_SHA"

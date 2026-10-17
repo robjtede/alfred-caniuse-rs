@@ -2,6 +2,12 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
     flake-parts.url = "github:hercules-ci/flake-parts";
+
+    x52 = {
+      url = "github:x52dev/nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.flake-parts.follows = "flake-parts";
+    };
   };
 
   outputs = inputs@{ flake-parts, ... }:
@@ -22,6 +28,10 @@
             pkgs.pkgsBuildHost.darwin.apple_sdk.frameworks.CoreFoundation
             pkgs.pkgsBuildHost.darwin.apple_sdk.frameworks.SystemConfiguration
           ];
+        };
+
+        devShells.ci-release = pkgs.mkShellNoCC {
+          packages = [ inputs'.x52.packages.x52-release-tools ];
         };
       };
     };
