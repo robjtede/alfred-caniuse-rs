@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, time::Duration};
 
 use serde::{Deserialize, Serialize};
 
@@ -6,6 +6,7 @@ use crate::models::{CompilerVersionData, FeatureData};
 
 const UA_NAME: &str = env!("CARGO_PKG_NAME");
 const UA_VERSION: &str = env!("CARGO_PKG_VERSION");
+const FETCH_TIMEOUT: Duration = Duration::from_secs(2);
 
 /// The caniuse features
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
@@ -19,7 +20,13 @@ pub struct Db {
 impl Db {
     /// Fetch the database from the given URL.
     pub fn fetch(url: &str) -> eyre::Result<Db> {
-        let mut db = ureq::get(&format!("{url}/features.json"))
+        let client = ureq::Agent::config_builder()
+            .timeout_global(Some(FETCH_TIMEOUT))
+            .build()
+            .new_agent();
+
+        let mut db = client
+            .get(&format!("{url}/features.json"))
             .header("user-agent", &format!("{UA_NAME}/{UA_VERSION}"))
             .call()?
             .into_body()
@@ -118,5 +125,47 @@ impl Db {
         }
 
         feats
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{
+        io::{Read, Write},
+        net::TcpListener,
+        sync::mpsc,
+        thread,
+        time::{Duration, Instant},
+    };
+
+    use super::Db;
+
+    #[test]
+    fn fetch_returns_error_when_server_stalls_before_headers() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let (release_server, resume_server) = mpsc::channel();
+
+        let server = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut request = [0; 1024];
+            let _ = stream.read(&mut request).unwrap();
+
+            // Keep the response stalled until the test releases the server.
+            let _ = resume_server.recv_timeout(Duration::from_secs(4));
+            stream
+                .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\n{}")
+                .unwrap();
+        });
+
+        let started = Instant::now();
+        let result = Db::fetch(&format!("http://{address}"));
+        let elapsed = started.elapsed();
+
+        let _ = release_server.send(());
+        server.join().unwrap();
+
+        assert!(result.is_err());
+        assert!(elapsed < Duration::from_secs(3), "fetch took {elapsed:?}");
     }
 }
