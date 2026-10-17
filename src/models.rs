@@ -279,6 +279,7 @@ mod tests {
     }
 
     fn assert_doc_url(item: &Value, expected_url: &str) {
+        assert_eq!(item["arg"], "https://example.com/features/example");
         assert_eq!(item["quicklookurl"], expected_url);
         assert_eq!(item["mods"]["alt"]["arg"], expected_url);
         assert_eq!(item["mods"]["alt"]["valid"], true);
@@ -339,6 +340,7 @@ mod tests {
     fn missing_documentation_keeps_no_docs_modifier() {
         let item = alfred_item(feature_with_docs(None, None, None));
 
+        assert_eq!(item["arg"], "https://example.com/features/example");
         assert_eq!(item["quicklookurl"], "https://example.com/features/example");
         assert_eq!(item["mods"]["alt"]["subtitle"], "No docs available.");
         assert_eq!(item["mods"]["alt"]["valid"], false);
