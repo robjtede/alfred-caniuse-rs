@@ -13,14 +13,11 @@
         devShells.default = pkgs.mkShell {
           packages = [
             config.formatter
-            pkgs.nodePackages.prettier
+            pkgs.prettier
             pkgs.taplo
             pkgs.just
-          ] ++ lib.optional pkgs.stdenv.isDarwin [
+          ] ++ lib.optionals pkgs.stdenv.isDarwin [
             pkgs.pkgsBuildHost.libiconv
-            pkgs.pkgsBuildHost.darwin.apple_sdk.frameworks.Security
-            pkgs.pkgsBuildHost.darwin.apple_sdk.frameworks.CoreFoundation
-            pkgs.pkgsBuildHost.darwin.apple_sdk.frameworks.SystemConfiguration
           ];
         };
       };
