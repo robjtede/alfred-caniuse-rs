@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, time::Duration};
 
 use serde::{Deserialize, Serialize};
 
@@ -6,6 +6,7 @@ use crate::models::{CompilerVersionData, FeatureData};
 
 const UA_NAME: &str = env!("CARGO_PKG_NAME");
 const UA_VERSION: &str = env!("CARGO_PKG_VERSION");
+const FETCH_TIMEOUT: Duration = Duration::from_secs(2);
 
 /// The caniuse features
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
@@ -18,9 +19,17 @@ pub struct Db {
 
 impl Db {
     /// Fetch the database from the given URL.
+    ///
+    /// The request has a two-second deadline, including response body reads.
     pub fn fetch(url: &str) -> eyre::Result<Db> {
-        let mut db = ureq::get(&format!("{url}/features.json"))
-            .header("user-agent", &format!("{UA_NAME}/{UA_VERSION}"))
+        let client = ureq::Agent::config_builder()
+            .user_agent(format!("{UA_NAME}/{UA_VERSION}"))
+            .timeout_global(Some(FETCH_TIMEOUT))
+            .build()
+            .new_agent();
+
+        let mut db = client
+            .get(&format!("{url}/features.json"))
             .call()?
             .into_body()
             .read_json::<Db>()?;
