@@ -52,7 +52,31 @@
     "root": {
       "inputs": {
         "flake-parts": "flake-parts",
-        "nixpkgs": "nixpkgs"
+        "nixpkgs": "nixpkgs",
+        "x52": "x52"
+      }
+    },
+    "x52": {
+      "inputs": {
+        "flake-parts": [
+          "flake-parts"
+        ],
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1792012538,
+        "narHash": "sha256-O9bP58JOHC5e6nZyOGS6USL5zqbHgUb5q1p+cNLT6XA=",
+        "owner": "x52dev",
+        "repo": "nix",
+        "rev": "adef4339d4f97a2d94297d651cb6989b6e3bd0e8",
+        "type": "github"
+      },
+      "original": {
+        "owner": "x52dev",
+        "repo": "nix",
+        "type": "github"
       }
     }
   },
