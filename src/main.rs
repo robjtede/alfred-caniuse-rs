@@ -6,7 +6,7 @@ use std::{env, io};
 use alfred_caniuse_rs::{Db, cache_fetch, cache_put, exit_alfred_error, self_update_check_item};
 use eyre::eyre;
 
-const CANIUSE_URL: &str = "https://caniuse.rs";
+const CANIUSE_URL: &str = "https://caniuse-rs.x52.dev";
 
 fn main() {
     let res = try_main().and_then(|items| Ok(alfred::json::write_items(io::stdout(), &items)?));
