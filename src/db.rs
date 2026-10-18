@@ -23,13 +23,13 @@ impl Db {
     /// The request has a two-second deadline, including response body reads.
     pub fn fetch(url: &str) -> eyre::Result<Db> {
         let client = ureq::Agent::config_builder()
+            .user_agent(format!("{UA_NAME}/{UA_VERSION}"))
             .timeout_global(Some(FETCH_TIMEOUT))
             .build()
             .new_agent();
 
         let mut db = client
             .get(&format!("{url}/features.json"))
-            .header("user-agent", &format!("{UA_NAME}/{UA_VERSION}"))
             .call()?
             .into_body()
             .read_json::<Db>()?;

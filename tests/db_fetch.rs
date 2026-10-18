@@ -1,80 +1,81 @@
-use std::{
-    io::{self, BufRead as _, BufReader, Write as _},
-    net::{Shutdown, TcpListener},
-    sync::mpsc,
-    thread,
-    time::{Duration, Instant},
-};
+use std::time::Duration;
 
 use alfred_caniuse_rs::Db;
+use serde_json::json;
+use wiremock::{
+    Mock, MockServer, ResponseTemplate,
+    matchers::{header, method, path},
+};
 
-#[test]
-fn fetch_times_out_while_waiting_for_response_headers() {
-    assert_fetch_times_out(b"");
+#[tokio::test]
+async fn fetch_times_out_when_response_is_delayed() {
+    let server = MockServer::start().await;
+
+    Mock::given(method("GET"))
+        .and(path("/features.json"))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .set_body_json(json!({ "versions": {}, "features": {} }))
+                .set_delay(Duration::from_secs(4)),
+        )
+        .expect(1)
+        .mount(&server)
+        .await;
+
+    let url = server.uri();
+    let err = tokio::task::spawn_blocking(move || Db::fetch(&url))
+        .await
+        .unwrap()
+        .unwrap_err();
+
+    assert!(
+        matches!(
+            err.downcast_ref::<ureq::Error>(),
+            Some(ureq::Error::Timeout(ureq::Timeout::Global))
+        ),
+        "expected a database fetch timeout, got {err}"
+    );
 }
 
-#[test]
-fn fetch_times_out_while_reading_response_body() {
-    assert_fetch_times_out(b"HTTP/1.1 200 OK\r\nContent-Length: 128\r\n\r\n{\"versions\":");
-}
+#[tokio::test]
+async fn fetch_sends_user_agent_and_decodes_database() {
+    let server = MockServer::start().await;
 
-fn assert_fetch_times_out(response: &[u8]) {
-    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
-    listener.set_nonblocking(true).unwrap();
-
-    let url = format!("http://{}", listener.local_addr().unwrap());
-    let (sender, receiver) = mpsc::channel();
-
-    thread::scope(move |scope| {
-        let worker = scope.spawn(move || sender.send(Db::fetch(&url)).unwrap());
-        let started = Instant::now();
-
-        let (mut stream, _) = loop {
-            match listener.accept() {
-                Ok(connection) => break connection,
-
-                Err(err)
-                    if err.kind() == io::ErrorKind::WouldBlock
-                        && started.elapsed() < Duration::from_secs(5) =>
-                {
-                    thread::sleep(Duration::from_millis(10));
+    Mock::given(method("GET"))
+        .and(path("/features.json"))
+        .and(header(
+            "user-agent",
+            concat!(env!("CARGO_PKG_NAME"), "/", env!("CARGO_PKG_VERSION")),
+        ))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "versions": {
+                "1.39.0": {
+                    "number": "1.39.0",
+                    "channel": "stable",
+                    "release_date": "2019-11-07"
                 }
-
-                Err(err) => panic!("did not receive the database request: {err}"),
+            },
+            "features": {
+                "async_await": {
+                    "title": "Async/await syntax",
+                    "version": "1.39.0",
+                    "items": ["async", "await"]
+                }
             }
-        };
+        })))
+        .expect(1)
+        .mount(&server)
+        .await;
 
-        drop(listener);
+    let url = server.uri();
+    let db = tokio::task::spawn_blocking(move || Db::fetch(&url))
+        .await
+        .unwrap()
+        .unwrap();
 
-        stream
-            .set_read_timeout(Some(Duration::from_secs(5)))
-            .unwrap();
+    let (feature, version) = db.get_feature("async_await").unwrap();
 
-        let mut reader = BufReader::new(&mut stream);
-        let mut request = String::new();
-
-        while !request.ends_with("\r\n\r\n") {
-            assert_ne!(reader.read_line(&mut request).unwrap(), 0);
-        }
-
-        stream.write_all(response).unwrap();
-
-        // Close the connection after the test deadline so the baseline worker can exit.
-        let result = receiver.recv_timeout(Duration::from_secs(5));
-        let _ = stream.shutdown(Shutdown::Both);
-        drop(stream);
-        worker.join().unwrap();
-
-        let err = result
-            .expect("database fetch did not return within five seconds")
-            .unwrap_err();
-
-        assert!(
-            matches!(
-                err.downcast_ref::<ureq::Error>(),
-                Some(ureq::Error::Timeout(ureq::Timeout::Global))
-            ),
-            "expected a database fetch timeout, got {err}"
-        );
-    });
+    assert_eq!(feature.title, "Async/await syntax");
+    assert_eq!(feature.slug, "async_await");
+    assert_eq!(version.unwrap().number, "1.39.0");
 }
