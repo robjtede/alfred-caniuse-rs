@@ -1,10 +1,6 @@
 //! Self-update checks.
 
-use std::{
-    fs,
-    io::{self, Write as _},
-    time::Duration,
-};
+use std::{fs, io, path::Path, time::Duration};
 
 use eyre::eyre;
 use semver::Version;
@@ -13,6 +9,7 @@ use serde::{Deserialize, Serialize};
 use crate::cache::cache_dir;
 
 const DAY_IN_SECS: u64 = 3600 * 24;
+const RETRY_IN_SECS: i64 = 5 * 60;
 const LATEST_URL: &str = "https://github.com/robjtede/alfred-caniuse-rs/releases";
 const LATEST_ZIP_PATH: &str = "/latest/download/package.zip";
 const SELF_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -20,7 +17,13 @@ const UPDATE_CHECK_FILENAME: &str = "update-check.json";
 
 /// Returning None means no action to take.
 pub fn self_update_check_item() -> Option<alfred::Item<'static>> {
-    self_update_check().map(|url| {
+    self_update_check(
+        &cache_dir().join(UPDATE_CHECK_FILENAME),
+        time::OffsetDateTime::now_utc(),
+        SELF_VERSION,
+        self_update_check_inner,
+    )
+    .map(|url| {
         alfred::ItemBuilder::new("A workflow update is available.")
             .subtitle("Press enter to go to download page.")
             .arg(url)
@@ -29,8 +32,13 @@ pub fn self_update_check_item() -> Option<alfred::Item<'static>> {
 }
 
 /// Returning None means no action to take.
-fn self_update_check() -> Option<&'static str> {
-    match self_need_update_check() {
+fn self_update_check(
+    check_file: &Path,
+    now: time::OffsetDateTime,
+    self_version: &str,
+    fetch_update: impl FnOnce() -> eyre::Result<bool>,
+) -> Option<&'static str> {
+    match self_need_update_check(check_file, now, self_version) {
         // fall through to update check
         Ok(NeedsCheck::Yes) => {
             eprintln!("update check will be perform")
@@ -46,8 +54,6 @@ fn self_update_check() -> Option<&'static str> {
 
         // eg. time::Date changes it's serde format causing json deserialization to fail
         Err(err) => {
-            let check_file = cache_dir().join(UPDATE_CHECK_FILENAME);
-
             eprintln!("update check cache failed: {err}");
             eprintln!("deleting update check file from: {check_file:?}");
 
@@ -59,14 +65,34 @@ fn self_update_check() -> Option<&'static str> {
     }
 
     // ignore errors from fetching for cases when no internet connection is available
-    match self_update_check_inner() {
-        Ok(true) => return Some(LATEST_URL),
-        Ok(false) => {
-            eprintln!("no update available");
-        }
+    let (update_needed, retry_after) = match fetch_update() {
+        Ok(update_needed) => (update_needed, None),
         Err(err) => {
             eprintln!("error fetching update: {err}");
+
+            (false, Some(now + time::Duration::seconds(RETRY_IN_SECS)))
         }
+    };
+
+    let last_check = UpdateCheck {
+        update_needed,
+        checked_with: self_version.to_owned(),
+        last_check: now,
+        retry_after,
+    };
+
+    if let Err(err) = store_update_check(check_file, &last_check) {
+        eprintln!("update check cache failed: {err}");
+
+        return None;
+    }
+
+    if update_needed {
+        return Some(LATEST_URL);
+    }
+
+    if retry_after.is_none() {
+        eprintln!("no update available");
     }
 
     None
@@ -89,13 +115,17 @@ struct UpdateCheck {
 
     /// When last API call was made to check for new latest version.
     last_check: time::OffsetDateTime,
+
+    /// Retry failed checks sooner than successful checks.
+    #[serde(default)]
+    retry_after: Option<time::OffsetDateTime>,
 }
 
 impl UpdateCheck {
     /// Returns true if API call should be made to check for new version.
-    fn remote_check_needed(&self) -> NeedsCheck {
+    fn remote_check_needed(&self, now: time::OffsetDateTime, self_version: &str) -> NeedsCheck {
         // immediately after an update versions will not match indicating stale data
-        if SELF_VERSION != self.checked_with {
+        if self_version != self.checked_with {
             return NeedsCheck::Yes;
         }
 
@@ -105,7 +135,15 @@ impl UpdateCheck {
             return NeedsCheck::KnownOutdated;
         }
 
-        let last_check_delta = time::OffsetDateTime::now_utc() - self.last_check;
+        if let Some(retry_after) = self.retry_after {
+            return if now >= retry_after {
+                NeedsCheck::Yes
+            } else {
+                NeedsCheck::No
+            };
+        }
+
+        let last_check_delta = now - self.last_check;
 
         // only thing to check is whether check has occurred recently
         if last_check_delta > time::Duration::seconds(DAY_IN_SECS as i64) {
@@ -117,9 +155,12 @@ impl UpdateCheck {
 }
 
 // Returning errors to signal a clean up of the cache file may be necessary.
-fn self_need_update_check() -> eyre::Result<NeedsCheck> {
-    let update_check_cache_path = cache_dir().join(UPDATE_CHECK_FILENAME);
-    let json = match fs::read(update_check_cache_path) {
+fn self_need_update_check(
+    check_file: &Path,
+    now: time::OffsetDateTime,
+    self_version: &str,
+) -> eyre::Result<NeedsCheck> {
+    let json = match fs::read(check_file) {
         Ok(val) => val,
 
         // special case when no cache file exists, check is needed
@@ -129,7 +170,7 @@ fn self_need_update_check() -> eyre::Result<NeedsCheck> {
     };
 
     let update_check = serde_json::from_slice::<UpdateCheck>(&json)?;
-    Ok(update_check.remote_check_needed())
+    Ok(update_check.remote_check_needed(now, self_version))
 }
 
 // Makes API call to GitHub to check latest
@@ -150,24 +191,6 @@ fn self_update_check_inner() -> eyre::Result<bool> {
 
     let update_needed = release_is_newer(latest_url, SELF_VERSION)?;
 
-    // ensure containing direction of cache file exists
-    fs::create_dir_all(cache_dir())?;
-
-    let update_check_cache_path = cache_dir().join(UPDATE_CHECK_FILENAME);
-    let mut file = fs::File::create(&update_check_cache_path)?;
-
-    let last_check = UpdateCheck {
-        update_needed,
-        checked_with: SELF_VERSION.to_owned(),
-        last_check: time::OffsetDateTime::now_utc(),
-    };
-
-    let update_check = serde_json::to_vec_pretty(&last_check)?;
-    // TODO: less resilient than other file ops
-    file.write_all(&update_check)?;
-
-    eprintln!("checking cache at {:?}", &update_check_cache_path);
-
     Ok(update_needed)
 }
 
@@ -182,6 +205,20 @@ fn release_is_newer(location: &str, current_version: &str) -> eyre::Result<bool>
     let current_version = Version::parse(current_version)?;
 
     Ok(latest_version.cmp_precedence(&current_version).is_gt())
+}
+
+fn store_update_check(check_file: &Path, last_check: &UpdateCheck) -> eyre::Result<()> {
+    if let Some(parent) = check_file.parent() {
+        fs::create_dir_all(parent)?;
+    }
+
+    let update_check = serde_json::to_vec_pretty(last_check)?;
+    // TODO: less resilient than other file ops
+    fs::write(check_file, update_check)?;
+
+    eprintln!("checking cache at {check_file:?}");
+
+    Ok(())
 }
 
 #[cfg(test)]
@@ -284,5 +321,183 @@ mod tests {
         ] {
             assert!(release_is_newer(location, "0.4.1").is_err(), "{location}");
         }
+    }
+}
+
+#[cfg(test)]
+mod backoff_tests {
+    use std::{
+        path::PathBuf,
+        sync::atomic::{AtomicUsize, Ordering},
+    };
+
+    use super::*;
+
+    const NOW: time::OffsetDateTime = time::macros::datetime!(2026-10-17 12:00 UTC);
+
+    struct TestCache(PathBuf);
+
+    impl TestCache {
+        fn new() -> Self {
+            static NEXT_ID: AtomicUsize = AtomicUsize::new(0);
+
+            let dir = std::env::temp_dir().join(format!(
+                "alfred-caniuse-update-{}-{}",
+                std::process::id(),
+                NEXT_ID.fetch_add(1, Ordering::Relaxed),
+            ));
+
+            fs::create_dir(&dir).unwrap();
+
+            Self(dir.join(UPDATE_CHECK_FILENAME))
+        }
+    }
+
+    impl Drop for TestCache {
+        fn drop(&mut self) {
+            let _ = fs::remove_dir_all(self.0.parent().unwrap());
+        }
+    }
+
+    #[test]
+    fn failed_check_retries_only_after_five_minutes() {
+        let cache = TestCache::new();
+
+        assert_eq!(
+            self_update_check(&cache.0, NOW, "0.4.1", || Err(eyre!("offline"))),
+            None,
+        );
+
+        for now in [NOW, NOW + time::Duration::seconds(299)] {
+            assert_eq!(
+                self_update_check(&cache.0, now, "0.4.1", || panic!("retry too soon")),
+                None,
+            );
+        }
+
+        let retry_at = NOW + time::Duration::minutes(5);
+
+        assert_eq!(
+            self_update_check(&cache.0, retry_at, "0.4.1", || Ok(true)),
+            Some("https://github.com/robjtede/alfred-caniuse-rs/releases"),
+        );
+    }
+
+    #[test]
+    fn successful_check_is_cached_for_a_day() {
+        let cache = TestCache::new();
+
+        assert_eq!(
+            self_update_check(&cache.0, NOW, "0.4.1", || Ok(false)),
+            None,
+        );
+
+        for now in [
+            NOW + time::Duration::minutes(5),
+            NOW + time::Duration::days(1),
+        ] {
+            assert_eq!(
+                self_update_check(&cache.0, now, "0.4.1", || panic!("check too soon")),
+                None,
+            );
+        }
+
+        assert_eq!(
+            self_update_check(
+                &cache.0,
+                NOW + time::Duration::days(1) + time::Duration::seconds(1),
+                "0.4.1",
+                || Ok(true),
+            ),
+            Some("https://github.com/robjtede/alfred-caniuse-rs/releases"),
+        );
+    }
+
+    #[test]
+    fn successful_retry_restores_the_daily_interval() {
+        let cache = TestCache::new();
+
+        self_update_check(&cache.0, NOW, "0.4.1", || Err(eyre!("offline")));
+
+        let mut fetched = false;
+        let notice = self_update_check(&cache.0, NOW + time::Duration::minutes(5), "0.4.1", || {
+            fetched = true;
+
+            Ok(false)
+        });
+
+        assert!(fetched, "the failed check must be retried");
+        assert_eq!(notice, None);
+
+        assert_eq!(
+            self_update_check(&cache.0, NOW + time::Duration::minutes(10), "0.4.1", || {
+                panic!("a successful retry must use the daily interval")
+            }),
+            None,
+        );
+    }
+
+    #[test]
+    fn cache_without_retry_deadline_keeps_the_daily_interval() {
+        let cache = TestCache::new();
+        let legacy_cache = serde_json::json!({
+            "update_needed": false,
+            "checked_with": "0.4.1",
+            "last_check": NOW,
+        });
+
+        fs::write(&cache.0, serde_json::to_vec(&legacy_cache).unwrap()).unwrap();
+
+        assert_eq!(
+            self_update_check(&cache.0, NOW + time::Duration::hours(23), "0.4.1", || {
+                panic!("the existing cache must remain valid")
+            }),
+            None,
+        );
+    }
+
+    #[test]
+    fn known_outdated_version_keeps_the_update_notice_without_fetching() {
+        let cache = TestCache::new();
+
+        assert!(self_update_check(&cache.0, NOW, "0.4.1", || Ok(true)).is_some());
+
+        assert_eq!(
+            self_update_check(&cache.0, NOW + time::Duration::days(2), "0.4.1", || {
+                panic!("known update does not need another fetch")
+            }),
+            Some("https://github.com/robjtede/alfred-caniuse-rs/releases"),
+        );
+    }
+
+    #[test]
+    fn changed_version_rechecks_a_cached_success_or_outdated_notice() {
+        for update_needed in [false, true] {
+            let cache = TestCache::new();
+
+            self_update_check(&cache.0, NOW, "0.4.1", || Ok(update_needed));
+
+            let mut fetched = false;
+            let notice = self_update_check(&cache.0, NOW, "0.4.2", || {
+                fetched = true;
+
+                Ok(false)
+            });
+
+            assert!(fetched, "a changed version must be checked");
+            assert_eq!(notice, None);
+        }
+    }
+
+    #[test]
+    fn changed_version_rechecks_during_failure_backoff() {
+        let cache = TestCache::new();
+
+        self_update_check(&cache.0, NOW, "0.4.1", || Err(eyre!("offline")));
+
+        assert_eq!(
+            self_update_check(&cache.0, NOW, "0.4.2", || Ok(true)),
+            Some("https://github.com/robjtede/alfred-caniuse-rs/releases"),
+        );
     }
 }
