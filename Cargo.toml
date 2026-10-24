@@ -20,7 +20,7 @@ zstd = "0.14"
 
 [dev-dependencies]
 tokio = { version = "1", features = ["macros", "net", "rt"] }
-wiremock = "=0.6.2"
+wiremock = "=0.6.5"
 
 [profile.release]
 lto = true
