@@ -73,7 +73,7 @@ impl Db {
 
         // TODO: totally no logic to any of this
 
-        for feature in self.features.values() {
+        'features: for feature in self.features.values() {
             if feature.slug.to_lowercase().contains(query) {
                 feats.push(feature);
                 continue;
@@ -97,14 +97,14 @@ impl Db {
             for item in &feature.items {
                 if item.to_lowercase().contains(query) {
                     feats.push(feature);
-                    continue;
+                    continue 'features;
                 }
             }
 
             for item in &feature.aliases {
                 if item.to_lowercase().contains(query) {
                     feats.push(feature);
-                    continue;
+                    continue 'features;
                 }
             }
 
