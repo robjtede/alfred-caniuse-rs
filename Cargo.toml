@@ -1,6 +1,6 @@
 [package]
 name = "alfred-caniuse-rs"
-version = "0.4.1"
+version = "0.4.2"
 authors = ["Rob Ede <robjtede@icloud.com>"]
 license = "MIT"
 edition = "2024"
