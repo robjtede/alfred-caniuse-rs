@@ -214,8 +214,22 @@ impl FeatureData {
             builder.set_text_large_type(self.items.join("\n"));
         }
 
-        if let Some(ref doc_path) = self.doc_path {
-            let doc_url = format!("https://doc.rust-lang.org/{doc_path}");
+        let doc_url = self
+            .doc_path
+            .as_deref()
+            .map(|path| format!("https://doc.rust-lang.org/{path}"))
+            .or_else(|| {
+                self.edition_guide_path
+                    .as_deref()
+                    .map(|path| format!("https://doc.rust-lang.org/edition-guide/{path}"))
+            })
+            .or_else(|| {
+                self.unstable_book_path
+                    .as_deref()
+                    .map(|path| format!("https://doc.rust-lang.org/unstable-book/{path}"))
+            });
+
+        if let Some(doc_url) = doc_url {
             builder.set_quicklook_url(doc_url.clone());
 
             builder.set_modifier(
@@ -236,5 +250,100 @@ impl FeatureData {
         }
 
         builder.into_item()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::Value;
+
+    use super::FeatureData;
+
+    fn alfred_item(feature: FeatureData) -> Value {
+        feature.to_alfred_item("https://example.com").to_json()
+    }
+
+    fn feature_with_docs(
+        doc_path: Option<&str>,
+        edition_guide_path: Option<&str>,
+        unstable_book_path: Option<&str>,
+    ) -> FeatureData {
+        FeatureData {
+            title: "Example".to_owned(),
+            slug: "example".to_owned(),
+            doc_path: doc_path.map(str::to_owned),
+            edition_guide_path: edition_guide_path.map(str::to_owned),
+            unstable_book_path: unstable_book_path.map(str::to_owned),
+            ..FeatureData::default()
+        }
+    }
+
+    fn assert_doc_url(item: &Value, expected_url: &str) {
+        assert_eq!(item["arg"], "https://example.com/features/example");
+        assert_eq!(item["quicklookurl"], expected_url);
+        assert_eq!(item["mods"]["alt"]["arg"], expected_url);
+        assert_eq!(item["mods"]["alt"]["valid"], true);
+        assert_eq!(item["mods"]["alt"]["subtitle"], "Press enter to see docs.");
+    }
+
+    #[test]
+    fn edition_guide_path_provides_documentation_url() {
+        let item = alfred_item(feature_with_docs(
+            None,
+            Some("rust-2018/trait-system/associated-constants.html"),
+            None,
+        ));
+
+        assert_doc_url(
+            &item,
+            "https://doc.rust-lang.org/edition-guide/rust-2018/trait-system/associated-constants.html",
+        );
+    }
+
+    #[test]
+    fn unstable_book_path_provides_documentation_url() {
+        let item = alfred_item(feature_with_docs(
+            None,
+            None,
+            Some("language-features/example.html"),
+        ));
+
+        assert_doc_url(
+            &item,
+            "https://doc.rust-lang.org/unstable-book/language-features/example.html",
+        );
+    }
+
+    #[test]
+    fn documentation_paths_use_expected_precedence() {
+        let item = alfred_item(feature_with_docs(
+            Some("std/primitive.bool.html"),
+            Some("rust-2018/example.html"),
+            Some("language-features/example.html"),
+        ));
+
+        assert_doc_url(&item, "https://doc.rust-lang.org/std/primitive.bool.html");
+
+        let item = alfred_item(feature_with_docs(
+            None,
+            Some("rust-2018/example.html"),
+            Some("language-features/example.html"),
+        ));
+
+        assert_doc_url(
+            &item,
+            "https://doc.rust-lang.org/edition-guide/rust-2018/example.html",
+        );
+    }
+
+    #[test]
+    fn missing_documentation_keeps_no_docs_modifier() {
+        let item = alfred_item(feature_with_docs(None, None, None));
+
+        assert_eq!(item["arg"], "https://example.com/features/example");
+        assert_eq!(item["quicklookurl"], "https://example.com/features/example");
+        assert_eq!(item["mods"]["alt"]["subtitle"], "No docs available.");
+        assert_eq!(item["mods"]["alt"]["valid"], false);
+        assert_eq!(item["mods"]["alt"].get("arg"), None);
     }
 }
